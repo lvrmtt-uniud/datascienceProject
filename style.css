@@ -1,0 +1,11 @@
+body {
+    font-family: 'Computer Modern';
+    font-size: 16pt;
+  }
+
+
+#header {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
