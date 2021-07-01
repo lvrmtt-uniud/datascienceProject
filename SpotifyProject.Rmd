@@ -1,0 +1,1422 @@
+---
+title: "Analisi esplorativa del database musicale della piattaforma Spotify"
+subtitle: "Progetto per il corso di Data Science"
+author: "Levratti Mattia - matr. 139022"
+output:
+  rmdformats::downcute:
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+<center>
+![](images/logoUniud-small.png "LogoUniud"){width="320"}
+
+![](images/spotifyLogo.png){width="320"}
+</center>
+
+## Breve introduzione
+
+Il mercato musicale e discografico, nella nostra epoca, appare dominato dal digital delivery e dallo streaming. Ormai, oltre alle vendite dei CD e dei vinili, recentemente ritornati in auge, contano moltissimo (e forse quasi più del resto) gli ascolti e i follower sulle piattaforme social.
+
+In ambito musicale ne esistono davvero molte: Youtube Music, Soundcloud, Tidal, Apple Music... ma la più popolare e nota al grande pubblico resta sicuramente Spotify, forte dei suoi 356 milioni di utenti attivi (di cui 158 premium), e dei suoi oltre 40.000 brani caricati al giorno.
+
+L'obiettivo di questo progetto è quello di rispondere a delle semplici domande che un musicista, in procinto di scrivere e pubblicare dei brani su Spotify, potrebbe porsi: quali sono i trend del momento? Come devo scrivere e ideare i miei brani per cercare di avere successo? Cosa devo fare per avere tanti ascolti, ma soprattutto cosa non devo fare?  
+
+------------------------------------------------------------------------
+
+# Elenco dei contenuti
+
+1.  Composizione del dataset e definizione delle features
+
+2.  Analisi sulle features
+
+-   Numero di brani in funzione dell'anno
+-   Durata media dei brani, suddivisi per anno di pubblicazione
+-   Distribuzione  di frequenza dei valori assunti dalle features
+-   Correlazione tra le features
+-   Analisi musicali: chiavi e modi tonali dominanti
+-   Analisi dei brani più popolari
+
+3.  Analisi dei generi
+
+-   Maggior popolarità
+-   Chiavi e modi dominanti nei generi
+
+4.  Analisi dei trend musicali nel tempo
+
+-   Popolarità dei generi nel tempo
+-   Andamento delle features nel tempo
+
+5.  Potenziali sviluppi nell'immediato futuro
+
+-   Andamento della durata
+-   Andamento dei generi
+-   Andamento delle features
+
+6.  Sentiment Analysis
+
+-   Analisi dei testi dei brani più in voga
+
+7.  Conclusioni
+
+------------------------------------------------------------------------
+
+Prima di cominciare, importiamo le principali librerie necessarie, nonché il file csv.
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+spotify_db <- read.csv("./tracks.csv")
+```
+
+# Composizione del dataset e definizione delle features
+
+Il dataset si compone di 2 documenti in formato .csv, contenenti rispettivamente
+
+- L'elenco di brani presenti su Spotify, con relative features
+- L'elenco dei generi, con il relativo valore medio delle features
+
+Le features di ogni brano sono:
+
+1. Artists
+
+L'elenco degli artisti della canzone.
+
+2. Danceability
+
+La ballabilità descrive quanto un brano sia adatto al ballo basandosi su una combinazione di elementi musicali tra cui il tempo, la stabilità del ritmo, la forza del beat e la regolarità generale. Un valore di 0.0 è meno ballabile e 1.0 è più ballabile.
+
+3. Duration_ms
+
+La durata della traccia in millisecondi.
+
+4. Energy
+
+L'energia è una misura da 0.0 a 1.0 e rappresenta una misura percettiva di intensità e attività. Tipicamente, le tracce energetiche sono veloci, forti e rumorose. Per esempio, il death metal ha un'alta energia, mentre un preludio di Bach ottiene un punteggio basso. Le caratteristiche percettive che contribuiscono a questo attributo includono la gamma dinamica, l'intensità percepita, il timbro, la frequenza di inizio e l'entropia generale.
+
+5. Explicit
+
+Indica se il brano include o meno del testo esplicito.
+
+7. Instrumentalness
+
+Indica se un brano contiene voci. I suoni "Ooh" e "aah" sono trattati come strumentali in questo contesto. Le tracce rap ad esempio sono chiaramente "vocali". Più il valore di instrumentalness è vicino a 1.0, maggiore è la probabilità che la traccia non contenga contenuti vocali. I valori superiori a 0,5 sono intesi come tracce strumentali, ma la fiducia è più alta quando il valore si avvicina a 1,0.
+
+8. Key
+
+La chiave in cui si trova la traccia. I numeri interi mappano le altezze usando la notazione Standard Pitch Class. Per esempio 0 = C, 1 = C♯/D♭, 2 = D, e così via.
+
+9. Liveness
+
+Rileva la presenza di un pubblico nella registrazione. Valori più alti di liveness rappresentano una maggiore probabilità che il brano sia stato eseguito dal vivo. Un valore superiore a 0,8 fornisce una forte probabilità che il brano sia dal vivo
+
+10. Loudness
+
+Il volume complessivo di una traccia in decibel (dB). I valori di loudness sono una media di tutta la traccia e sono utili per confrontare il loudness relativo delle tracce. La loudness è la qualità di un suono che è il principale correlato psicologico della forza fisica (ampiezza). I valori tipici sono compresi tra -60 e 0 db.
+
+11. Mode
+
+Il modo indica la modalità (maggiore o minore) di un brano, il tipo di scala da cui deriva il suo contenuto melodico. Maggiore è rappresentato da 1 e minore da 0.
+
+12. Name
+
+Nome del brano.
+
+13. Popularity 
+
+La popolarità di un brano è un valore compreso tra 0 e 100, con 100 che è il più popolare. La popolarità è calcolata da un algoritmo e si basa, nella maggior parte dei casi, sul numero totale di riproduzioni che il brano ha avuto e su quanto sono recenti quelle riproduzioni. In generale, le canzoni che vengono suonate molto adesso avranno una popolarità più alta di quelle che sono state suonate molto in passato.
+
+14. Release_date
+
+La data di uscita dell'album, per esempio "1981-12-15". A seconda della precisione, potrebbe essere mostrato come "1981" o "1981-12".
+
+15. Speechiness 
+
+Rileva la presenza di parole parlate in una traccia. Più la registrazione è esclusivamente parlata (ad esempio talk show, audiolibro, poesia), più il valore dell'attributo è vicino a 1.0. Valori superiori a 0,66 descrivono tracce che sono probabilmente fatte interamente di parole parlate. I valori tra 0,33 e 0,66 descrivono tracce che possono contenere sia musica che parlato, sia in sezioni che stratificate, inclusi casi come la musica rap. I valori inferiori a 0,33 rappresentano molto probabilmente musica e altre tracce non simili al parlato.
+
+16. Tempo
+
+Il tempo complessivo stimato di una traccia in battiti al minuto (BPM). Nella terminologia musicale, il tempo è la velocità o il ritmo di un dato brano e deriva direttamente dalla durata media delle battute.
+
+17. Valence
+
+Una misura da 0.0 a 1.0 che descrive la positività musicale trasmessa da un brano. I brani con alta valenza suonano più positivi (ad esempio, felice, allegro, euforico), mentre i brani con bassa valenza suonano più negativi (ad esempio, triste, depresso, arrabbiato).
+
+18. Year
+
+Anno di uscita (estratto da release_date).
+
+19. Genres
+
+Una lista dei generi usati per classificare l'album. Per esempio: "Prog Rock" , "Post-Grunge". (Se non ancora classificato, l'array è vuoto).
+
+
+------------------------------------------------------------------------
+
+# Analisi sulle features
+
+In questa sezione, cerchiamo di analizzare le varie features, il loro andamento, la loro correlazione, per verificare se emerge qualche pattern interessante.
+
+```{r}
+getyear <- function(myString) {
+  as.integer(unlist(strsplit(myString, "-"))[1])
+}
+
+spotify_db$release_date <- sapply(spotify_db$release_date, as.character)
+spotify_db <- mutate(spotify_db, year = sapply(spotify_db$release_date, getyear))
+
+spotify_db <- mutate(spotify_db, duration_sec = duration_ms/1000)
+
+ggplot(data = count(spotify_db, year)) + 
+  geom_col(aes(x = year, y = n)) + 
+  labs(title = "Numero di brani pubblicati nel tempo", 
+       subtitle = "Statico dagli anni '40, in incremento dal 2000", 
+       x ="Anno di pubblicazione", 
+       y = "Numero di brani") + 
+  theme_minimal()
+ggsave("./plots/tracksPubslished.png")
+```
+
+Interessante notare come ci sia un costante aumento delle pubblicazioni annuali, con il picco di pubblicazioni nel 2020. Possiamo ipotizzare che questo picco sia legato all'anno della pandemia da Covid-19?
+
+Procediamo ora con l'analisi della durata media (in secondi) dei brani negli anni, cercando anche di osservare se c'è un trend di crescita o decrescita.
+
+```{r}
+mean_dur_by_year <- aggregate(spotify_db$duration_sec, list(spotify_db$year), mean)
+colnames(mean_dur_by_year) <- c("Year","Avg_track_duration")
+
+mean_dur_by_year %>%
+  ggplot(aes(x = Year, y = Avg_track_duration)) + 
+  geom_point() + 
+  geom_smooth() + 
+  labs(title = "Durata media dei brani nel tempo", 
+       subtitle = "In aumento fino agli anni '90 e poi in decrescita ", 
+       x ="Anno in analisi", 
+       y = "Durata media dei brani (in secondi)") + 
+  theme_minimal()
+ggsave("./plots/trackDuration.png")
+```
+
+Come si può notare, c'è un trend complessivo di aumento della durata, che però negli ultimi anni non è stato così marcato, anzi. Se ad esempio restringiamo il campo d'azione, analizzando i brani pubblicati dopo il 2005, potremmo quasi notare un trend inverso
+
+```{r}
+filter(mean_dur_by_year, Year > 2005) %>%
+  ggplot(aes(x = Year, y = Avg_track_duration)) + 
+  geom_point() + 
+  geom_smooth() + 
+  labs(title = "Durata media dei brani nel tempo", 
+       subtitle = "Focus sull'inversione di tendenza iniziata dal 2011", 
+       x ="Anno in analisi", 
+       y = "Durata media dei brani (in secondi)") + 
+  theme_minimal()
+ggsave("./plots/trackDurationFocus.png")
+```
+
+Da questo focus si nota in maniera evidente il trend di decrescita, che sembra molto marcato.
+
+## Features dei brani
+
+Ogni brano è caratterizzato dalle features descritte in introduzione. Può risultare interessante visualizzare con un boxplot la distribuzione di questi valori.
+È opportuno filtrare le features, per escludere quelle non legate alla natura musicale del brano.
+
+```{r}
+spotify_db_filtered <- spotify_db %>% 
+  select(-year,-explicit, -artists, -id, -name, -release_date, -duration_ms, -key, -loudness, -mode, -popularity, -tempo, -duration_sec, -id_artists, -time_signature) 
+  
+spotify_db_filtered %>%
+  gather(key = "Feature", value = "Valore") %>%
+  ggplot(aes(x = reorder(Feature, Valore, FUN = median), y = Valore)) +
+  geom_boxplot(outlier.colour = "gray", outlier.alpha = 0.3, outlier.size = 0.3) +
+  labs(title = "Visualizazione dei valori assunti dalle varie features", 
+       subtitle = "Analisi visiva mediante boxplot", 
+       x = "Feature", y = "Valore") +
+  theme_minimal()
+ggsave("./plots/featuresBarPlot.png")
+```
+
+Come si può notare dal grafico, instrumentalness, speechiness e liveness sono piuttosto tendenti a valori bassi, mentre le restanti features assumono sicuramente valori più alti, e sono anche distribuite molto più uniformemente. 
+Confrontiamo ad esempio i grafici di densità di frequenza per acousticness ed energy.
+
+```{r}
+spotify_db_features <- spotify_db_filtered %>%
+  gather(key = "Feature", value = "Valore")
+
+spotify_db_features %>%
+  filter(Feature == "acousticness" | Feature == "energy") %>%
+  ggplot(aes(x = Valore)) +
+  geom_density(aes(fill = Feature), alpha = 0.4) +
+  labs(title = "Confronto distribuzione di acousticness ed energy", 
+       subtitle = "Distribzione nettamente differente", 
+       x = "Valore", y = "Densità") +
+  theme_minimal()
+
+ggsave("./plots/acousticnessEnergyDensity.png")
+
+```
+
+Come si può notare, energy ha una distribuzione piuttosto uniforme, leggermente spostata a sinistra, mentre acousticness presenta un due picchi agli estremi. Osserviamo anche le distribuzioni delle altre features, escludendo instrumentalness che è praticamente formata da un unico picco in basso (come si può notare dal sottostante Summary)
+
+```{r}
+summary(spotify_db$instrumentalness)
+
+spotify_db_features %>%
+  filter(Feature == "speechiness") %>%
+  ggplot(aes(x = Valore)) +
+  geom_density(aes(fill = Feature), alpha = 0.4) +
+  labs(title = "Speechiness",
+       x = "Valore", y = "Densità") +
+  theme_minimal()
+
+spotify_db_features %>%
+  filter(Feature == "liveness") %>%
+  ggplot(aes(x = Valore)) +
+  geom_density(aes(fill = Feature), alpha = 0.4) +
+  labs(title = "Liveness",
+       x = "Valore", y = "Densità") +
+  theme_minimal()
+
+spotify_db_features %>%
+  filter(Feature == "valence") %>%
+  ggplot(aes(x = Valore)) +
+  geom_density(aes(fill = Feature), alpha = 0.4) +
+  labs(title = "Valence",
+       x = "Valore", y = "Densità") +
+  theme_minimal()
+
+spotify_db_features %>%
+  filter(Feature == "danceability") %>%
+  ggplot(aes(x = Valore)) +
+  geom_density(aes(fill = Feature), alpha = 0.4) +
+  labs(title = "Danceability",
+       x = "Valore", y = "Densità") +
+  theme_minimal()
+```
+
+
+## Correlazione tra le features
+
+Abbiamo osservato qualche trend macroscopico, ma è interessante ora cercare di capire quanto le varie caratteristiche dei brani siano collegate. Per fare ciò viene utilizzato lo strumento statistico del coefficiente di correlazione di Pearson, che indica la dipendenza lineare che sussiste tra due variabili. Per visualizzare ciò è interessante utilizzare una Heatmap.
+
+```{r}
+
+spotify_db_filtered <- spotify_db %>% 
+  select(-year,-explicit, -artists, -id, -name, -release_date, -key, -mode, -id_artists, -duration_ms, -time_signature, -tempo)
+corrMatrix <- round(cor(spotify_db_filtered, method = "pearson"), 3)
+
+library(corrplot)
+corrplot(corrMatrix, order = "hclust")
+```
+
+Dall'analisi della correlazione, notiamo due interessanti legami
+
+-   Energy e Loudness, e in maniera minore Valence e Danceability sono direttamente correlate
+-   Energy e Acousticness, e in maniera minore Acousticness e Loudness sono inversamente correlate
+
+Osserviamo graficamente questi fenomeni
+
+```{r}
+spotify_db %>%
+  ggplot(aes(x=energy, y=loudness)) + geom_point() + geom_smooth(method = "lm") + labs(title = "Analisi di correlazione tra energia e volume dei brani", subtitle = paste("La linea di tendenza crescente testimonia la correlazione diretta, coefficiente: ", round(cor(spotify_db$energy, spotify_db$loudness, method = "pearson"), digits = 3)), x ="Energia", y = "Volume") + theme_minimal()
+
+spotify_db %>%
+  ggplot(aes(x=valence, y=danceability)) + geom_point() + geom_smooth(method = "lm") + labs(title = "Analisi di correlazione tra valenza e danzabilità e volume dei brani", subtitle = paste("Correlazione verificata, coefficiente: ", round(cor(spotify_db$valence, spotify_db$danceability, method = "pearson"), digits = 3)), x ="Valenza", y = "Danzabilità") + theme_minimal()
+```
+
+```{r}
+spotify_db %>%
+  ggplot(aes(x=energy, y=acousticness)) + geom_point() + geom_smooth(method = "lm")  + labs(title = "Analisi di correlazione tra energia e acusticità dei brani", subtitle = paste("La linea di tendenza decrescente testimonia la correlazione inversa, coefficiente: ", round(cor(spotify_db$energy, spotify_db$acousticness, method = "pearson"), digits = 3)), x ="Energia", y = "Acusticità") + theme_minimal()
+
+spotify_db %>%
+  ggplot(aes(x=acousticness, y=loudness)) + geom_point() + geom_smooth(method = "lm")  + labs(title = "Analisi di correlazione tra acusticità e volume dei brani", subtitle = paste("Inversione meno marcata rispetto al caso precedente, coefficiente: ", round(cor(spotify_db$acousticness, spotify_db$loudness, method = "pearson"), digits = 3)), x = "Acusticità", y ="Volume") + theme_minimal()
+```
+
+Queste due analisi grafiche confermano quanto ricavato dalla heatmap precedente.
+
+
+## Analisi musicale: toni e modi dominanti
+
+Dal punto di vista musicale, è anche molto interessante effettuare un'analisi macroscopica delle tonalità e dei modi prevalentemente utilizzati nel brani. In breve, la tonalità indica l'accordo dominante nel brano e il modo indica se è maggiore (felice) o minore (triste). Nel dataset le tonalità sono indicate con numeri da 0 (Do) a 11 (Si). È opportuno tradurre questi numeri in note. Analogamente, il modo è indicato con 0 per minore e 1 per maggiore.
+
+```{r}
+nomi_note <- c("Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si")
+tracks_by_key <- spotify_db %>%
+  count(key, sort=TRUE) %>%
+  mutate(chiave = nomi_note[key+1]) %>%
+  select(chiave, n)
+
+tracks_by_key %>%
+  ggplot(aes(x=reorder(chiave, -n), y=n)) + geom_bar(stat="identity") + labs(title = "Confronto tra le tonalità più utilizzate", subtitle = "Vincono quelle con meno alterazioni in chiave", x = "Tonalità", y = "Numero di brani") + theme_minimal()
+```
+
+```{r}
+nomi_modi <- c("Minore","Maggiore")
+tracks_by_mode <- spotify_db %>%
+  count(mode, sort=TRUE) %>%
+  mutate(modo = nomi_modi[mode+1]) %>%
+  select(modo, n)
+ggplot(tracks_by_mode, aes(x = modo, y = n)) + geom_col()  + labs(title = "Confronto tra i modi", subtitle = "Il modo maggiore è quello più utilizzato", x = "Modo", y = "Numero di brani") + theme_minimal()
+```
+
+Come era lecito aspettarsi, le tonalità dominanti sono Do, Sol, Re, La e Fa, e il modo è quello Maggiore. Musicalmente, queste tonalità sono le più utilizzate per via di regole musicali per la scrittura dei brani, infatti sono le tonalità con meno alterazioni (diesis e bemolli), quindi più facili da scrivere e immediate da ascoltare. Inoltre, il modo maggiore risulta ampiamente più utilizzato del minore, proprio per la sua natura gioiosa.
+
+Il dataset ci fornisce inoltre informazioni relative alla time signature dei brani, analizziamole.
+
+```{r}
+spotify_db %>%
+  filter(time_signature > 1) %>%
+  count(time_signature, sort = TRUE) %>%
+  ggplot(aes(x = time_signature, y = n)) + geom_col()  + labs(title = "Confronto tra time signature", subtitle = "Nettamente più utilizzato il classico 4/4, ma vanno fatte delle verifiche", x = "Time Signature", y = "Numero di brani") + theme_minimal()
+```
+Ho rimosso i time signature 0/4 e 1/4, in quanto da musicista so che non esistono, ma sono dati da errori dell'algoritmo di rilevamento di Spotify (come spiegato, questa feature non è verificata ma solamente dedotta tramite algoritmo). La metrica 2/4 risulta a 0 per lo stesso motivo, probabilmente l'algoritmo la confonde con i 4/4.
+Allo stesso modo, è possibile affermare che molti altri tempi (specialmente composti) vengano "inglobati" dall'algoritmo in queste categorie. 
+Questa feature insomma è la più "debole" probabilmente dell'intero dataset, e ci può quindi solamente fornire l'idea indicativa che vengono utilizzati tempi con metrica binaria o quaternaria, ma non ci da indicazioni sulla natura semplice o composta degli stessi.
+
+Per concludere questo capitoletto, è interessante analizzare la popolarità dei brani.
+
+```{r}
+most_popular_by_year = tibble(artists=NA,name=NA, year=NA, popularity=NA)
+for (i in 1920:2021) {
+  dt <- spotify_db %>%
+    filter(year == i) %>%
+    select(artists, name, year, popularity) %>%
+    arrange(-popularity) %>%
+    head(1)
+  most_popular_by_year <- rbind(most_popular_by_year, dt)
+}
+
+most_popular_by_year %>%
+  ggplot(aes(x=year, y=popularity)) + geom_col() + labs(title = "Andamento dei brani più popolari nel tempo", subtitle = "Cresce nel tempo, tuttavia i brani dagli anni '60 restano molto popolari", x = "Anno", y = "Popolarità del brano più popolare") + geom_smooth() + theme_minimal()
+ggsave("./plots/popularity.png")
+```
+
+Tramite questo grafico si può affermare che non conviene pubblicare brani ispirati alla musica relativa agli anni '30, '40 e '50, in quanto non sono attualmente affatto popolari. Chiaramente i brani più recenti sono quelli attualmente più popolari, ma anche i brani degli anni '60 - '90 restano molto popolari.
+
+------------------------------------------------------------------------
+
+# Analisi dei generi
+
+Iniziamo ora l'esplorazione dei generi musicali. Il dataset mette a disposizione un ulteriore file .csv, dove vengono riportate le informazioni relative ad artisti e generi. Vediamoli, elencati in base al numero di brani associati ad ogni genere.
+
+```{r}
+spotify_genres <- read.csv("./data_by_genres.csv")
+
+spotify_genres %>%
+  select(genres, popularity) %>%
+  arrange(-popularity) %>%
+  rename(
+    Genere = genres,
+    Popolarità = popularity
+  ) %>%
+  head(10)
+```
+
+Risultati interessanti, visto che di questi generi, almeno la metà sono completamente sconosciuti per me. In ogni caso, dai nomi possiamo notare che si tratta principalmente di generi afferenti al pop, all'indie e al rap.
+
+Analizziamo ora, in base ai generi, tonalità e modi.
+
+```{r}
+topKey_by_genres <- spotify_genres %>%
+  count(key, sort=TRUE) %>%
+  mutate(chiave = nomi_note[key+1]) %>%
+  select(chiave, n)
+
+topKey_by_genres %>%
+  ggplot(aes(x=reorder(chiave, -n), y=n)) + geom_bar(stat="identity") + labs(title = "Confronto tra le tonalità più utilizzate", subtitle = "Chiave di sol nettamente più utilizzata", x = "Tonalità", y = "Numero di brani") + theme_minimal()
+ggsave("./plots/topkeybygenres.png")
+
+```
+
+```{r}
+topMode_by_genres <- spotify_genres %>%
+  count(mode, sort=TRUE) %>%
+  mutate(modo = nomi_modi[mode+1]) %>%
+  select(modo, n)
+
+topMode_by_genres %>%
+  ggplot(aes(x = modo, y = n)) + geom_col()  + labs(title = "Confronto tra i modi", subtitle = "Il modo maggiore rimane il più utilizzato", x = "Modo", y = "Numero di brani") + theme_minimal()
+ggsave("./plots/topmodebygenres.png")
+```
+
+Per pura curiosità, siccome io sono appassionato di modo minore, verifichiamo quali sono i generi più popolari realizzati in modo minore.
+
+```{r}
+spotify_genres %>%
+  filter(mode == 0) %>%
+  arrange(-popularity) %>%
+  select(genres, popularity) %>%
+  head(10)
+```
+
+------------------------------------------------------------------------
+
+# Analisi dei trend musicali nel tempo
+
+Dopo aver osservato in maniera descrittiva le singole features, può risultare interessante andare ad osservare la loro evoluzione temporale. In primo luogo è sicuramente interessante osservare l'andamento medio delle features nel tempo.
+
+```{r}
+features_by_year <- spotify_db %>%
+  select(-artists, -explicit, -id, -key, -mode, -name, -release_date, -duration_ms, -tempo, -loudness, -popularity, -duration_sec, -id_artists) %>%
+  filter(year > 1900) %>%
+  group_by(year) %>%
+  summarise(across(danceability:valence, mean, na.rm = TRUE, .names = "{col}_mean")) %>%
+  pivot_longer(
+    cols = danceability_mean:valence_mean,
+    names_to = "feature_full",
+    values_to = "Value"
+  ) %>%
+  separate(feature_full, into = c("Feature","applied_function"), sep = "_")
+
+colors <- c(acousticness_mean = "red",
+            danceability_mean = "green",
+            energy_mean = "blue",
+            instrumentalness_mean = "yellow",
+            liveness_mean = "pink",
+            speechiness_mean = "orange",
+            valence_mean = "gray"
+              )
+
+features_by_year %>%
+  ggplot(aes(x=year, y=Value, group=Feature, color = Feature)) +
+  geom_line() + 
+  scale_color_discrete(name = "Legenda") + 
+  labs(title = "Andamento delle features nel tempo", subtitle = "Interessante andamento di Acousticness ed Energy", x = "Anno", y = "Valore") + theme_minimal()
+ggsave("./plots/featuresovertime.png")
+```
+
+Fino agli anni '50 c'è un andamento irregolare di tutti i dati, probabilmente dato dall'incompletezza del dataset per dati così antiquati. Interessante notare l'andamento di Energy e Acousticness: il primo aumenta nettamente nel tempo, mentre il secondo al contrario ha un brusco calo. Isoliamoli ed analizziamoli meglio.
+
+```{r}
+features_by_year %>%
+  filter(year >= 1950 & (Feature == "acousticness" | Feature == "energy")) %>%
+  ggplot(aes(x=year, y=Value, group=Feature, color = Feature)) +
+  geom_line() + 
+  geom_smooth() +
+  scale_color_discrete(name = "Legenda") + 
+  labs(title = "Focus su Acousticness ed Energy", subtitle = "Interessante andamento di Acousticness ed Energy", x = "Anno", y = "Valore") + theme_minimal()
+```
+
+Come si può notare, le due features hanno un valore medio molto similare poco prima del 1970. Per il resto, globalmente il trend resta decrescente per Acousticness e crescente per Energy, seppure i valori sembrino recentemente mediamente piatti. Tutto ciò è un'ulteriore conferma di quanto espresso in precedenza su queste due features, tramite correlazione di Pearson.
+
+------------------------------------------------------------------------
+
+# Potenziali sviluppi futuri
+
+Effettuare questa analisi ci ha permesso di comprendere meglio l'attuale panorama musicale presente su Spotify, e già con queste informazioni, un nostro ipotetico musicista in erba avrebbe molte informazioni su cui meditare, relativamente al modo in cui strutturare le sue uscite musicali. Ora però sarebbe interessante spingersi anche un po' oltre e provare, sulla base dei dati raccolti, ad effettuare delle previsioni. Per fare ciò, ho scelto di impostare ed utilizzare un modello di regressione polinomiale, applicandolo alle varie features.
+
+```{r}
+
+modelAcousticness <- lm(acousticness ~ poly(year, 2, raw = TRUE), data = spotify_db)
+p1 <- predict(modelAcousticness, data.frame(year=c(2022:2027)))
+
+modelEnergy <- lm(energy ~ poly(year, 2, raw = TRUE), data = spotify_db)
+p2 <- predict(modelEnergy, data.frame(year=c(2022:2027)))
+
+modelDanceability <- lm(danceability ~ poly(year, 2, raw = TRUE), data = spotify_db)
+p3 <- predict(modelDanceability, data.frame(year=c(2022:2027)))
+
+modelInstrumentalness <- lm(instrumentalness ~ poly(year, 2, raw = TRUE), data = spotify_db)
+p4 <- predict(modelInstrumentalness, data.frame(year=c(2022:2027)))
+
+modelLiveness <- lm(liveness ~ poly(year, 2, raw = TRUE), data = spotify_db)
+p5 <- predict(modelLiveness, data.frame(year=c(2022:2027)))
+
+modelSpeechiness <- lm(speechiness ~ poly(year, 2, raw = TRUE), data = spotify_db)
+p6 <- predict(modelSpeechiness, data.frame(year=c(2022:2027)))
+
+modelValence <- lm(valence ~ poly(year, 2, raw = TRUE), data = spotify_db)
+p7 <- predict(modelValence, data.frame(year=c(2022:2027)))
+
+Valori <- format(c(p1,p2,p3,p4,p5,p6,p7), scientific = FALSE)
+Anno <- c(rep(c(2022,2023,2024,2025,2026,2027),7))
+Feature <- c(rep("Acousticness",6),rep("Energy",6),rep("Danceability",6),rep("Instrumentalness",6),rep("Liveness",6),rep("Speechiness",6),rep("Valence",6))
+
+test <- data.frame(Feature, Anno, Valori)
+test$Valori <- sapply(test$Valori, as.numeric)
+test$Valori = test$Valori/100
+
+test %>%
+  filter(Anno == 2022) %>%
+  select(Feature, Valori)
+
+ggplot(test, aes(x = Anno, y = Valori, color = Feature)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Previsione quinquennale", subtitle = "Valori delle features", x = "Anno", y = "Valore previsto") + theme_minimal()
+ggsave("./plots/futurefeatures.png")
+```
+
+Da questa analisi, possiamo vedere quali sono i valori medi previsti per le varie features per il prossimo anno, e anche il loro andameno quinquennale previsto. Indicativamente, si prospettano brani piuttosto energici e ballabili, poco strumentali e acustici, non registrati in live, con un mood lievemente tendente verso il triste o greve.
+
+
+-------
+
+# Sentiment Analysis
+
+In conclusione, può risultare molto interessante analizzare i testi dei brani più popolari, per osservare l'evoluzione (se c'è) dei sentimenti dei testi più popolari nel tempo.
+
+L'idea è di costruire un dataframe apposito, con i due brani più popolari di ogni anno. Per ogni riga, quindi per ogni brano, è necessario ottenere il testo, su cui in seguito effettuare la sentiment analysis.
+
+```{r}
+sentimentAnalysisDF = tibble(artists=NA,name=NA, year=NA, popularity=NA)
+for (i in 1960:2021) {
+  dt <- spotify_db %>%
+    filter(year == i) %>%
+    select(artists, name, year, popularity) %>%
+    arrange(-popularity) %>%
+    head(1)
+  sentimentAnalysisDF <- rbind(sentimentAnalysisDF, dt)
+}
+
+sentimentAnalysisDF$artists <- sapply(sentimentAnalysisDF$artists, as.character)
+sentimentAnalysisDF$artists <- str_sub(sentimentAnalysisDF$artists, 2, -2)
+sentimentAnalysisDF <- drop_na(sentimentAnalysisDF)
+sentimentAnalysisDF = sentimentAnalysisDF %>%
+  separate(artists, "Artista", sep = ",")
+sentimentAnalysisDF$Artista <- str_sub(sentimentAnalysisDF$Artista, 2, -2)
+sentimentAnalysisDF[, "text"] <- ""
+
+sentimentAnalysisDF = sentimentAnalysisDF %>%
+  mutate(queryAdd = paste("http://api.chartlyrics.com/apiv1.asmx/SearchLyricDirect?artist=", Artista, "&song=", name, sep =  "")) %>%
+  mutate(queryAdd = str_replace_all(queryAdd, " ", "%20"))
+
+library(XML)
+for (song in 1:124) {
+  tryCatch ( {
+    xmlRawData = xmlToList(sentimentAnalysisDF$queryAdd[song], addAttributes = TRUE, simplify = FALSE)
+    testo = xmlRawData$Lyric
+    sentimentAnalysisDF$text[song] = testo
+  },
+  error = function(err) {
+    cat("Errore, testo mancante")
+  }
+  )
+}
+
+```
+Utilizzando la API ChartLyrics è stato possibile ottenere molti testi in maniera automatizzata. Purtroppo, essendo una soluzione gratuita non include tutti i testi. I mancanti li inserisco a mano.
+
+```{r, echo=FALSE}
+sentimentAnalysisDF$text[26] = "We're talking away
+I don't know what
+I'm to say I'll say it anyway
+Today's another day to find you
+Shying away
+I'll be coming for your love, okay?
+Take on me, (take on me)
+Take me on, (take on me)
+I'll be gone
+In a day or two
+So needless to say
+I'm odds and ends
+I'll be stumbling away
+Slowly learning that life is OK
+Say after me
+It's no better to be safe than sorry
+Take on me, (take on me)
+Take me on, (take on me)
+I'll be gone
+In a day or two
+Oh the things that you say
+Is it live or
+Just to play my worries away
+You're all the things I've got to remember
+You're shying away
+I'll be coming for you anyway
+Take on me, (take on me)
+Take me on, (take on me)
+I'll be gone
+In a day
+I'll be gone (take on me)
+In a day (take me on, take on me)
+(Take on me, take on me)
+(Take me on, take on me)
+(Take on me)"
+
+sentimentAnalysisDF$text[33] = "
+25 years of my life and still
+I'm trying to get up that great big hill of hope
+For a destination
+I realized quickly when I knew I should
+That the world was made of this brotherhood of man
+For whatever that means
+And so I cry sometimes
+When I'm lying in bed
+Just to get it all out
+What's in my head
+And I, I am feeling a little peculiar.
+And so I wake in the morning
+And I step outside
+And I take a deep breath and I get real high
+And I scream from the top of my lungs
+What's going on?
+And I say:
+Hey yeah yeaaah!
+Hey yeah yeah.
+I said hey,
+What's going on?
+And I say:
+Hey yeah yeaaah!
+Hey yeah yeah.
+I said hey,
+What's going on?
+Uhh, uh, uhuhuh uhuhuh
+Uhh, uh, uhuhuh uhuhuh
+And I try
+Oh my god do I try
+I try all the time
+In this institution
+And I pray
+Oh my god do I pray
+I pray every single day
+For a revolution.
+And so I cry sometimes
+When I'm lying bed
+Just to get it all out
+What's in my head
+And I, I am feeling a little peculiar
+And so I wake in the morning
+And I step outside
+And I take a deep breath and I get real high
+And I scream from the top of my lungs
+What's going on?
+And I say:
+Hey yeah yeaaah!
+Hey yeah yeah.
+I said hey,
+What's going on?
+And I say:
+Hey yeah yeaaah!
+Hey yeah yeah.
+I said hey,
+What's going on?
+And I say:
+Hey yeah yeaaah!
+Hey yeah yeah.
+I said hey,
+What's going on?
+And I say:
+Hey yeah yeaaah!
+Hey yeah yeah.
+I said hey,
+What's going on?
+Uhh, uh, uhuhuh uhuhuh
+25 years of my life and still
+I'm trying to get up that great big hill of hope
+For a destination"
+
+sentimentAnalysisDF$text[49] = "
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+You better run
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+Ga-ga-ga-ga-ga
+It started with the hayloft a-creakin'
+Well, it just started in the hay (loft)
+With his longjohns on, pop went a-creeping
+Out to the barn, up to the hay
+Young lovers and they are not sleeping
+Young lovers in the hay (loft)
+With his gun turned on, pop went a-creeping
+Out to the barn, up to the hay (loft)
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+You better run
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+Ga-ga-ga-ga-ga
+Ga-ga-ga-ga-ga
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+You better run
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+Ga-ga-ga-ga-ga
+It started with the hayloft a-creakin'
+Well, it just started in the hay
+With his longjohns on, Pop went a-creeping
+Out to the barn, up to the hay (loft)
+Young lovers with their legs tied up in knots
+Young lovers with their legs tied up in knots
+With his long, tall gun, Pop went a-creeping
+To blow their hay-loft dead heads straight off
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+You better run
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+You better run
+My daddy's got a gun
+My daddy's got a gun
+My daddy's got a gun
+Ga-ga-ga-ga-ga
+Ga-ga-ga-ga-ga
+Ga-ga-ga-ga-ga
+"
+
+sentimentAnalysisDF$text[52] = "
+Robert's got a quick hand
+He'll look around the room he won't tell you his plan
+He's got a rolled cigarette
+Hanging out his mouth, he's a cowboy kid
+Yeah, he found a six shooter gun
+In his dad's closet, in a box of fun things
+And I don't even know what
+But he's coming for you, yeah, he's coming for you
+All the other kids with the pumped up kicks
+You better run, better run, outrun my gun
+All the other kids with the pumped up kicks
+You better run, better run faster than my bullet
+All the other kids with the pumped up kicks
+You better run, better run, outrun my gun
+All the other kids with the pumped up kicks
+You better run, better run faster than my bullet
+Daddy works a long day
+He's coming home late, yeah, he's coming home late
+And he's bringing me a surprise
+Cause dinner's in the kitchen and it's packed in ice
+I've waited for a long time
+Yeah, the slight of my hand is now a quick pull trigger
+I reason with my cigarette
+Then say your hair's on fire
+You must have lost your wits, yeah
+All the other kids with the pumped up kicks
+You better run, better run, outrun my gun
+All the other kids with the pumped up kicks
+You better run, better run faster than my bullet
+All the other kids with the pumped up kicks
+You better run, better run, outrun my gun
+All the other kids with the pumped up kicks
+You better run, better run faster than my bullet
+All the other kids with the pumped up kicks
+You better run, better run, outrun my gun
+All the other kids with the pumped up kicks
+You better run, better run faster than my bullet
+All the other kids with the pumped up kicks
+You better run, better run, outrun my gun
+All the other kids with the pumped up kicks
+You better run, better run faster than my bullet
+All the other kids with the pumped up kicks
+You better run, better run, outrun my gun
+All the other kids with the pumped up kicks
+You better run, better run faster than my bullet"
+
+sentimentAnalysisDF$text[53] = "
+Same bed but it feels just a little bit bigger now
+Our song on the radio but it don't sound the same
+When our friends talk about you, all it does is just tear me down
+'Cause my heart breaks a little when I hear your name
+It all just sounds like ooh, ooh, ooh, hoo
+Mm, too young, too dumb to realize
+That I should have bought you flowers
+And held your hand
+Should have gave you all my hours
+When I had the chance
+Take you to every party 'cause all you wanted to do was dance
+Now my baby's dancing
+But she's dancing with another man
+My pride, my ego, my needs, and my selfish ways
+Caused a good strong woman like you to walk out my life
+Now I never, never get to clean up the mess I made, oh
+And that haunts me every time I close my eyes
+It all just sounds like ooh, ooh, ooh, hoo
+Mm, too young, too dumb to realize
+That I should have bought you flowers
+And held your hand
+Should have gave you all my hours
+When I had the chance
+Take you to every party 'cause all you wanted to do was dance
+Now my baby's dancing
+But she's dancing with another man
+Although it hurts
+I'll be the first to say that I was wrong
+Oh, I know I'm probably much too late
+To try and apologize for my mistakes
+But I just want you to know
+I hope he buys you flowers
+I hope he holds your hand
+Give you all his hours
+When he has the chance
+Take you to every party
+'Cause I remember how much you loved to dance
+Do all the things I should have done
+When I was your man
+Do all the things I should have done
+When I was your man"
+
+sentimentAnalysisDF$text[54] = "
+And all I am is a man
+I want the world in my hands
+I hate the beach
+But I stand in California with my toes in the sand
+Use the sleeves of my sweater
+Let's have an adventure
+Head in the clouds but my gravity centered
+Touch my neck and I'll touch yours
+You in those little high waisted shorts, oh
+Oh, she knows what I think about
+And what I think about
+One love, two mouths
+One love, one house
+No shirt, no blouse
+Just us, you find out
+Nothing that I wouldn't wanna tell you about, no
+'Cause it's too cold
+For you here
+And now, so let me hold
+Both your hands in the holes of my sweater
+And if I may just take your breath away
+I don't mind if there's not much to say
+Sometimes the silence guides a mind
+To move to a place so far away
+The goosebumps start to raise
+The minute that my left hand meets your waist
+And then I watch your face
+Put my finger on your tongue 'cause you love to taste, yeah
+These hearts adore, everyone the other beats hardest for
+Inside this place is warm
+Outside it starts to pour
+Coming down
+One love, two mouths
+One love, one house
+No shirt, no blouse
+Just us, you find out
+Nothing that I wouldn't wanna tell you about, no, no, no
+'Cause it's too cold
+For you here
+And now, so let me hold
+Both your hands in the holes of my sweater
+'Cause it's too cold
+For you here
+And now, so let me hold
+Both your hands in the holes of my sweater
+Whoa, whoa, whoa
+Whoa, whoa, whoa
+Whoa, whoa, whoa, whoa
+Whoa, whoa
+Whoa, whoa, whoa, whoa
+Whoa, whoa
+'Cause it's too cold
+For you here
+And now, so let me hold
+Both your hands in the holes of my sweater
+It's too cold
+For you here
+And now, let me hold
+Both your hands in the holes of my sweater
+And it's too cold, it's too cold
+The hands of my sweater"
+
+sentimentAnalysisDF$text[55] = "
+Hey, once upon a younger year
+When all our shadows disappeared
+The animals inside came out to play
+Hey, Went face to face with all our fears
+Learned our lessons through the tears
+Make memories we knew would never fade
+
+One day my father he told me
+Son, don't let it slip away
+He took me in his arms, I heard him sayWhen you'll get older
+Your wild life would live for younger days
+Think of me if ever you're afraid
+
+He said, one day you'll leave this world behind
+So live a life you will remember
+My father told me when I was just a child
+These are the nights that never die
+My father told me
+
+When thunder clouds start pouring down
+Light a fire they can't put out
+Carve your name into those shining stars
+He said go venture far beyond these shores
+Don't forsake this life of yours
+I'll guide you home no matter where you are
+
+One day my father he told me
+Son, don't let it slip away
+When i was just a kid, I heard him sayWhen you'll get older
+Your wild heart will live for younger days
+Think of me if ever you're afraid
+
+He said, one day you'll leave this world behind
+So live a life you will remember
+My father told me when I was just a child
+These are the nights that never die
+My father told me
+
+These are the night that never die
+My father told me, ohoooohhhoh
+My father told me"
+
+sentimentAnalysisDF$text[56] = "
+Yeah
+Yeah
+Yeah
+Your man on the road, he doin' promo
+You said, Keep our business on the low-low
+I'm just tryna get you out the friend zone
+'Cause you look even better than the photos
+I can't find your house, send me the info
+Drivin' through the gated residential
+Found out I was comin', sent your friends home
+Keep on tryna hide it, but your friends know
+I only call you when it's half-past five
+The only time that I'll be by your side
+I only love it when you touch me, not feel me
+When I'm fucked up, that's the real me
+When I'm fucked up, that's the real me, yeah
+I only call you when it's half-past five
+The only time I'd ever call you mine
+I only love it when you touch me, not feel me
+When I'm fucked up, that's the real me
+When I'm fucked up, that's the real me, babe
+I'ma let you know and keep it simple
+Tryna keep it up don't seem so simple
+I just fucked two bitches 'fore I saw you
+And you gon' have to do it at my tempo
+Always tryna send me off to rehab
+Drugs started feelin' like it's decaf
+I'm just tryna live life for the moment
+And all these motherfuckers want a relapse
+I only call you when it's half-past five
+The only time that I'll be by your side
+I only love it when you touch me, not feel me
+When I'm fucked up, that's the real me
+When I'm fucked up, that's the real me, yeah
+I only call you when it's half-past five
+The only time I'd ever call you mine
+I only love it when you touch me, not feel me
+When I'm fucked up, that's the real me
+When I'm fucked up, that's the real me, babe
+Hills have eyes, the hills have eyes
+Who are you to judge?
+Who are you to judge?
+Hide your lies, girl, hide your lies
+Only you to trust, only you
+I only call you when it's half-past five
+The only time that I'll be by your side
+I only love it when you touch me, not feel me
+When I'm fucked up, that's the real me
+When I'm fucked up, that's the real me, yeah
+I only call you when it's half-past five
+The only time I'd ever call you mine
+I only love it when you touch me, not feel me
+When I'm fucked up, that's the real me
+When I'm fucked up, that's the real me, babe"
+
+sentimentAnalysisDF$text[57] = "
+Yeah
+7:30 in the night, yeah
+Ooh-ooh, ooh
+I get those goosebumps every time, yeah, you come around, yeah
+You ease my mind, you make everything feel fine
+Worried 'bout those comments, I'm way too numb, yeah
+It's way too dumb, yeah
+I get those goosebumps every time, I need the Heimlich
+Throw that to the side, yeah
+I get those goosebumps every time, yeah, when you're not around (straight up)
+When you throw that to the side, yeah (it's lit)
+I get those goosebumps every time, yeah
+713 through the 281, yeah I'm ridin'
+Why they on me?
+Why they on me? I'm flyin', sippin' low-key
+I be sippin' low-key in Onyx, rider, rider
+When I'm pullin' up right beside ya
+Pop star, lil' Mariah
+When I text, kick game, knowledge
+Throw a stack on the Bible
+Never Snapchat or took molly
+She fall through plenty, her and all her ginnies, yeah
+We at the top floor, right there off Doheny, yeah
+Oh no, I can't fuck with y'all, yeah
+When I'm with my squad I cannot do no wrong, yeah
+Saucin' in the city, don't get misinformed, yeah
+They gon' pull up on you (brrt, brrt, brrt)
+Yeah, we gon' do some things, some things you can't relate
+Yeah, 'cause we from a place, a place you cannot stay
+Oh, you can't go, oh, I don't know
+Oh, back the fuck up off me (brrt, brrt, brrt)
+I get those goosebumps every time, yeah, you come around, yeah
+You ease my mind, you make everything feel fine
+Worried 'bout those comments, I'm way too numb, yeah
+It's way too dumb, yeah
+I get those goosebumps every time, I need the Heimlich
+Throw that to the side, yeah
+I get those goosebumps every time, yeah, when you're not around
+When you throw that to the side, yeah
+I get those goosebumps every time
+Uh, I wanna press my like, yeah, I wanna press my
+I want a green light, I wanna be like
+I wanna press my line, yeah
+I wanna to take that ride, yeah
+I'm gonna press my line
+I want a green light, I wanna be like, I wanna press my
+Mama, dear, spare your feelings
+I'm relivin' moments, peelin' more residual
+I can buy the building, burn the building, take your bitch
+Rebuild the building just to fuck some more
+I can justify my love for you
+And touch the sky for God to stop debatin' war
+Put the pussy on a pedestal (ayy)
+Put the pussy on a high horse
+That pussy to die for
+That pussy to die for
+Peter Piper, picked a pepper
+So I could pick your brain and put your heart together
+We depart the shady parts and party hard, the diamonds yours
+The coupe forever
+My best shot, just might shoot forever like (brrt)
+I get those goosebumps every time, yeah, you come around, yeah
+You ease my mind, you make everything feel fine
+Worried 'bout those comments, I'm way too numb, yeah
+It's way too dumb, yeah
+I get those goosebumps every time, I need the Heimlich
+Throw that to the side, yeah
+I get those goosebumps every time, yeah, when you're not around
+When you throw that to the side, yeah
+I get those goosebumps every time"
+
+sentimentAnalysisDF$text[58] = "
+First things first
+
+I′ma say all the words inside my head
+
+I'm fired up, and tired of the way that things have been, oh-ooh
+
+The way that things have been, oh-ooh
+
+Second thing second
+
+Don′t you tell me what you think that I can be
+
+I'm the one at the sail, I'm the master of my sea, oh-ooh
+
+The master of my sea, oh-ooh
+
+I was broken from a young age
+
+Taking my sulking to the masses
+
+Writing my poems for the few
+
+That look at me, took to me, shook to me, feeling me
+
+Singing from heartache from the pain
+
+Taking my message from the veins
+
+Speaking my lesson from the brain
+
+Seeing the beauty through the...
+
+Pain
+
+You made me a, you made me a believer, believer
+
+Pain
+
+You break me down, you build me up, believer, believer
+
+Pain
+
+Oh, let the bullets fly, oh, let them rain
+
+My life, my love, my drive it came from...
+
+Pain
+
+You made me a, you made me a believer, believer
+
+Third things third
+
+Send a prayer to the ones up above
+
+All the hate that you′ve heard
+
+Has turned your spirit to a dove, oh-ooh
+
+Your spirit up above, oh-ooh
+
+I was choking in the crowd
+
+Building my rain up in the cloud
+
+Falling like ashes to the ground
+
+Hoping my feelings, they would drown
+
+But they never did, ever lived, ebbing and flowing
+
+Inhibited, limited, ′til it broke open and it rained down
+
+It rained down like...
+
+Pain
+
+You made me a, you made me a believer, believer
+
+Pain
+
+You break me down, you build me up, believer, believer
+
+Pain
+
+Oh, let the bullets fly, oh, let them rain
+
+My life, my love, my drive it came from...
+
+Pain
+
+You made me a, you made me a believer, believer
+
+Last things last
+
+By the grace of the fire and the flames
+
+You're the face of the future, the blood in my veins, oh-ooh
+
+The blood in my veins, oh-ooh
+
+But they never did, ever lived, ebbing and flowing
+
+Inhibited, limited, ′til it broke open, and it rained down
+
+It rained down like...
+
+Pain
+
+You made me a, you made me a believer, believer
+
+Pain
+
+You break me down, you build me up, believer, believer
+
+Pain
+
+Oh, let the bullets fly, oh, let them rain
+
+My life, my love, my drive it came from...
+
+Pain
+
+You made me a, you made me a believer, believer"
+
+sentimentAnalysisDF$text[59] = "
+Thought I found a way
+Thought I found a way out (found)
+But you never go away (never go away)
+So I guess I gotta stay now
+Oh, I hope some day I'll make it out of here
+Even if it takes all night or a hundred years
+Need a place to hide, but I can't find one near
+Wanna feel alive, outside I can't fight my fear
+Isn't it lovely, all alone
+Heart made of glass, my mind of stone
+Tear me to pieces, skin to bone
+Hello, welcome home
+Walkin' out of town
+Lookin' for a better place (lookin' for a better place)
+Something's on my mind (mind)
+Always in my head space
+But I know some day I'll make it out of here
+Even if it takes all night or a hundred years
+Need a place to hide, but I can't find one near
+Wanna feel alive, outside I can't fight my fear
+Isn't it lovely, all alone
+Heart made of glass, my mind of stone
+Tear me to pieces, skin to bone
+Hello, welcome home
+Whoa, yeah
+Yeah, ah
+Whoa, whoa
+Hello, welcome home"
+
+sentimentAnalysisDF$text[60] = "
+I've been goin' through some things (oh)
+I struggle with my inner man (yeah, yeah)
+I hustle, I'll do what I can to get this money
+Blaq Tuxedo
+Don Dada on the, Don Dada on the beat
+Like you, like you
+Like you, ooh
+I found it hard to find someone like you
+Like you, like you
+Send your location, come through
+I can't sleep no more
+In my head, we belong
+And I can't be without you
+Why can't I find no one like you?
+I can't sleep no more
+In my head, we belong
+And I can't be without you
+Why can't I find no one like you?
+Baby, we tried to fight it
+We all been there some days
+Thought I needed something else
+And acted like I was okay
+We just had to work it out
+And baby, I needed space
+Ain't nobody 'round here on your level
+You're so far away
+You're pouring your heart out
+I'm acting like I knew
+You held me so down
+So down I never grew, oh
+I tried to find out
+When none of them came through
+And now I'm stuck in the middle
+And baby had to pull me out, oh
+Like you, like you
+Like you, ooh
+I found it hard to find someone like you
+Like you, like you
+Send your location, come through (yeah)
+Damn papa, you a rare breed, no comparing
+And it's motherfuckin' scary
+Tryna keep him 'cause I found him
+Let a hoe know I ain't motherfuckin' sharing
+I could take you to the parents, then to Paris
+Plan a motherfuckin' wedding
+You the type I wanna marry (yeah) and keep you merry
+I'll put the ring on when you ready
+We play our fantasies out in real life ways and
+No Final Fantasy, can we end these games though?
+You give me energy, make me feel lightweight
+Like the birds of a feather, baby
+We real life made for each other
+And it's hard to keep my cool
+When other bitches tryna get with my dude and
+When other chickens tryna get in my coop
+'Cause you're a one in a million
+There ain't no man like you
+Like you, like you
+Like you, ooh
+I found it hard to find someone like you
+Like you, like you
+Send your location, come through
+I can't sleep no more
+In my head, we belong
+And I can't be without you
+Why can't I find no one like you?
+I can't sleep no more
+In my head, we belong
+And I can't be without you
+Why can't I find no one like you?"
+
+sentimentAnalysisDF$text[61] = "
+Ooh
+Na-na, yeah
+I saw you dancing in a crowded room
+You look so happy when I'm not with you
+But then you saw me, caught you by surprise
+A single teardrop falling from your eye
+I don't know why I run away
+I'll make you cry when I run away
+You could've asked me why I broke your heart
+You could've told me that you fell apart
+But you walked past me like I wasn't there
+And just pretended like you didn't care
+I don't know why I run away
+I'll make you cry when I run away
+Take me back 'cause I wanna stay
+Save your tears for another
+Save your tears for another day
+Save your tears for another day
+So, I made you think that I would always stay
+I said some things that I should never say
+Yeah, I broke your heart like someone did to mine
+And now you won't love me for a second time
+I don't know why I run away, oh, girl
+Said I'll make you cry when I run away
+Girl, take me back 'cause I wanna stay
+Save your tears for another
+I realize that I'm much too late
+And you deserve someone better
+Save your tears for another day (ooh, yeah)
+Save your tears for another day (yeah)
+I don't know why I run away
+I'll make you cry when I run away
+Save your tears for another day, ooh, girl (ah)
+I said save your tears for another day (ah)
+Save your tears for another day (ah)
+Save your tears for another day (ah)"
+
+```
+
+
+```{r}
+library(tidytext)
+sentimentFinalTable <- sentimentAnalysisDF %>%
+  mutate(songId = row_number()) %>%
+  ungroup() %>%
+  unnest_tokens(word, text) %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(name, anno = year, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative) %>%
+  arrange(anno)
+
+summary(sentimentFinalTable$sentiment)
+sentimentFinalTable %>% 
+  ggplot(aes(anno,sentiment, fill=name)) +
+  geom_col(show.legend = FALSE) +
+  labs(title = "Andamento del Sentiment", subtitle = "Canzone più popolare per ciascun anno", x = "Anno", y = "Valore di sentiment") + theme_minimal()
+ggsave("./plots/sentiment.png")
+
+```
+
+Questa analisi purtroppo non ha restituito nessun pattern interessante; sentimenti positivi e negativi si alternano senza trend o valori predominanti. L'unica cosa che si può ricavare è che appunto, il sentiment del testo dei brani non ha una grande rilevanza ai fini della popolarità.
+
+--------------------------------
+
+# Conclusioni
+
+Al termine di questo progetto, è possibile ricavare alcune interessanti conclusioni che possono aiutarci a rispondere alle domande in oggetto: quali sono i parametri musicali maggiormente utilizzati su Spotify? In che modo un musicista emergente può essere relativamente sicuro di pubblicare brani che verranno apprezzati dalla massa?
+
+Innanzitutto, è doveroso ricordare che siamo nel campo delle ipotesi: questa analisi ci può soltanto aiutare, ci fa avere una panoramica di tutto ciò. Ma stiamo parlando di musica, emozioni umane, e soprattutto di un'analisi non professionale, basata su dati circoscritti territorialmente.
+
+Detto ciò, traiamo le conclusioni:
+
+- La durata media dei brani si attesta intorno ai 200 secondi, quindi circa 3 minuti e 20 secondi, con un trend di decrescita: è opportuno quindi pensare di pubblicare brani leggermente più corti
+
+- Strumentalità, parlato e liveness si attestano verso valori bassi, in trend decrescente: è opportuno quindi pensare di pubblicare brani non prevalentemente strumentali o parlati, e non registrati in live
+
+- Energia, valenza e danzabilità si attestano su valori medio/alti, in trend crescente/stabile: via libera a brani energici, positivi e movimentati
+
+- Le tonalità più utilizzate sono quelle con meno alterazioni in chiave, quindi è opportuno pensare di utilizzare il classico circolo delle quinte (do - sol - re - la - fa)
+
+- Le misure più utilizzate sono quelle a multipli di due (2/4, 4/4), quindi meglio evitare misure ternarie o dispari
+
+- La popolarità dei brani antecedenti agli anni '60 risulta in discesa, quindi meglio ispirarsi solo a brani pubblicati successivamente
+
+- In merito al testo non sono stati trovati pattern da seguire, quindi libero sfogo ad emozioni sia positive che negative
